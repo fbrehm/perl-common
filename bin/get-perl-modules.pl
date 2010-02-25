@@ -57,6 +57,7 @@ use Config;
 use Pod::Usage;
 use Getopt::Long;
 use Cwd 'abs_path';
+use Module::Info;
 
 $Data::Dumper::Indent = 1;
 $Data::Dumper::Sortkeys = 1;
@@ -69,7 +70,6 @@ my $Revisn = <<'ENDE';
 ENDE
 $Revisn =~ s/^.*:\s*(\S+)\s*\$.*/$1/s;
 our $VERSION = "1.0." . $Revisn;
-
 
 my $module = {};
 
@@ -129,6 +129,8 @@ ENDE
 
 print "Include-Verzeichnisse: " . Dumper(\@INC) if $verbose;
 
+my $global_count = 0;
+
 for my $d ( @INC ) {
 
 	my $dir = abs_path($d);
@@ -147,12 +149,16 @@ sub wanted {
 
     my $file_abs = $File::Find::name;
     if ( -f $file_abs and $file_abs =~ /\.pm$/ ) {
+
         print "Untersuche '$file_abs' ...\n" if $verbose > 1;
         
         my ( $volume, $file_in_volume, $file_bla ) = File::Spec->splitpath( $file_abs, 1 );
         $file_in_volume =~ s/^$cur_dir\///;
         return if $file_in_volume =~ /^$arch\//;
         return if $file_in_volume =~ /^$version\//;
+
+		$global_count++;
+
         my $modname = $file_in_volume;
         $modname =~ s/\.pm$//;
         $modname =~ s#/#::#g;
@@ -193,6 +199,13 @@ sub wanted {
 		$mod_info->{'path'} = $file_abs;
 		$mod_info->{'loc'}  = $loc_name;
 
+		if ( $get_module_version ) {
+			my $version = get_version( $file_abs, $modname );
+			$version = '' unless defined $version;
+			$mod_info->{'version'} = $version;
+			$module->{$modname}{'version'} = $version unless exists $module->{$modname}{'version'};
+		}
+
 		push @{ $module->{$modname}{'locations'} }, $mod_info;
 	
         #$module->{$modname} = $location;
@@ -203,16 +216,31 @@ sub wanted {
 print Dumper( $module ) if $verbose > 1;
 
 print "\nGefundene Module:\n\n" if $verbose;
+printf "insgesamt %d Module gefunden.\n\n", $global_count if $verbose;
 
 for my $m ( sort { lc($a) cmp lc($b) } keys %$module ) {
     printf " - %s\n", $m;
 	for my $mod_info ( @{ $module->{$m}{'locations'} } ) {
-		printf "     %-11s %s\n", $mod_info->{'loc'}, $mod_info->{'path'};
+		my $version = $get_module_version ? ( " (" . $mod_info->{'version'} . ")" ) : '';
+		printf "     %-11s %s%s\n", $mod_info->{'loc'}, $mod_info->{'path'}, $version;
 	}
-    #print $module->{$_} . " " . $_ . "\n";
 }
 
 exit 0;
+
+#------------------------------------------------------------------------------------
+
+sub get_version {
+
+	my $module_path = shift;
+	my $module_name = shift;
+
+	my $mod = Module::Info->new_from_file($module_path);
+	my $version = $mod->version;
+	$version = '~' unless defined $version and $version ne '';
+	return $version;
+
+}
 
 #------------------------------------------------------------------------------------
 
