@@ -73,12 +73,13 @@ our $VERSION = "1.0." . $Revisn;
 
 my $module = {};
 
-my ( $verbose, $cur_dir, $cmdline_verbose, $DebugLevel, $help, $show_version, $get_module_version );
+my ( $verbose, $cur_dir, $cmdline_verbose, $DebugLevel, $help, $show_version, $get_module_version, $short );
 
 unless (
     GetOptions(
         "verbose|v+"           => \$cmdline_verbose,
 		"get-module-version|get-version|gv" => \$get_module_version,
+		"short|s"              => \$short,
         "DebugLevel|Debug|D=i" => \$DebugLevel,
         "help|h|?"             => \$help,
         "version|V"            => \$show_version,
@@ -100,6 +101,11 @@ if ($show_version) {
     print "Version $0: " . $VERSION . "\n";
     print "\n";
     exit 0;
+}
+
+if ( $verbose and $short ) {
+	warn "Optionen --verbose und --short vertragen sich nicht.\n";
+	exit 1;
 }
 
 print "Geladene Module: " . Dumper(\%INC) if $verbose > 1;
@@ -219,10 +225,16 @@ print "\nGefundene Module:\n\n" if $verbose;
 printf "insgesamt %d Module gefunden.\n\n", $global_count if $verbose;
 
 for my $m ( sort { lc($a) cmp lc($b) } keys %$module ) {
-    printf " - %s\n", $m;
-	for my $mod_info ( @{ $module->{$m}{'locations'} } ) {
-		my $version = $get_module_version ? ( " (" . $mod_info->{'version'} . ")" ) : '';
-		printf "     %-11s %s%s\n", $mod_info->{'loc'}, $mod_info->{'path'}, $version;
+	if ( $short ) {
+		my $version = $get_module_version ? ( " (" . $module->{$m}{'version'} . ")" ) : '';
+		printf "%-11s %s%s\n", $module->{$m}{'first_location'}, $m, $version;
+	}
+	else {
+    	printf " - %s\n", $m;
+		for my $mod_info ( @{ $module->{$m}{'locations'} } ) {
+			my $version = $get_module_version ? ( " (" . $mod_info->{'version'} . ")" ) : '';
+			printf "     %-11s %s%s\n", $mod_info->{'loc'}, $mod_info->{'path'}, $version;
+		}
 	}
 }
 
