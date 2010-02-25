@@ -56,6 +56,7 @@ use Data::Dumper;
 use Config;
 use Pod::Usage;
 use Getopt::Long;
+use Cwd 'abs_path';
 
 $Data::Dumper::Indent = 1;
 $Data::Dumper::Sortkeys = 1;
@@ -101,6 +102,8 @@ if ($show_version) {
     exit 0;
 }
 
+print "Geladene Module: " . Dumper(\%INC) if $verbose > 1;
+
 my $arch = $Config{'archname'};
 my $version = $Config{'version'};
 
@@ -111,13 +114,33 @@ my $va_lib_dir = $Config{'vendorarch'};
 my $sp_lib_dir = $Config{'sitelib'};
 my $sa_lib_dir = $Config{'sitearch'};
 
-for my $dir ( @INC ) {
+if ( $verbose ) {
+	print <<ENDE;
+Standard-Modul-Verzeichnisse:
+Core-Modul-Verzeichnis:        $cp_lib_dir
+Core-Arch-Modul-Verzeichnis:   $ca_lib_dir
+Vendor-Modul-Verzeichnis:      $vp_lib_dir
+Vendor-Arch-Modul-Verzeichnis: $va_lib_dir
+Site-Modul-Verzeichnis:        $sp_lib_dir
+Site-Arch-Modul-Verzeichnis:   $sa_lib_dir
+
+ENDE
+}
+
+print "Include-Verzeichnisse: " . Dumper(\@INC) if $verbose;
+
+for my $d ( @INC ) {
+
+	my $dir = abs_path($d);
 
     if ( -d $dir ) {
         print "\nDurchsuche Verzeichnis '$dir' ...\n" if $verbose;
         $cur_dir = $dir;
         find( \&wanted, $dir );
     }
+	else {
+		warn "$dir ist kein Verzeichnis.\n";
+	}
 }
 
 sub wanted {
