@@ -95,7 +95,7 @@ has 'show_version' => (
     lazy            => 1,
     traits          => [ 'Getopt' ],
     builder         => '_build_show_version',
-    documentation   => 'BOOL: Anzeige der Verwendung der Anwendung',
+    documentation   => 'BOOL: Anzeige der Anwendungsversion',
     cmd_flag        => 'version',
     cmd_aliases     => [ 'V' ],
 );
@@ -194,7 +194,7 @@ sub evaluate_common_options {
 
     my $self = shift;
 
-#    $self->debug( "Werte allgemeine Optionen aus." );
+    $self->debug( "Werte allgemeine Optionen aus." );
 
     $self->_do_show_usage() if $self->show_usage;
     $self->_do_show_version() if $self->show_version;
@@ -261,7 +261,7 @@ sub _do_show_usage {
         }
         $max_length = length($Attr->{'show'}) if length($Attr->{'show'}) > $max_length;
 
-#        $self->debug( "Attribut: ", $Attr ) if $self->verbose >= 3;
+        $self->debug( "Attribut: ", $Attr ) if $self->verbose >= 3;
         push @Attribute, $Attr;
 
     }
