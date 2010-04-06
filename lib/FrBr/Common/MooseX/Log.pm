@@ -78,6 +78,10 @@ sub _build_watch_delay_log_conf {
     return 60;
 }
 
+#has '+logger' => (
+#    traits          => [ 'NoGetopt' ],
+#);
+
 #---------------------------------------------------------------------------
 
 =head1 METHODS
