@@ -321,6 +321,19 @@ sub _log {
 
 }
 
+#---------------------------------
+
+sub Moose::Meta::Attribute::new {
+    my ($class, $name, %options) = @_;
+    $class->_process_options($name, \%options) unless $options{__hack_no_process_options}; # used from clone()... YECHKKK FIXME ICKY YUCK GROSS
+
+    delete $options{__hack_no_process_options};
+
+    return $class->SUPER::new($name, %options);
+}
+
+
+
 #---------------------------------------------------------------------------
 
 no Moose::Role;
