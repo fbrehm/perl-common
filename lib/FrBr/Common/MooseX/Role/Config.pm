@@ -1,11 +1,11 @@
-package OPS::MooseX::Role::Config;
+package FrBr::Common::MooseX::Role::Config;
 
 # $Id$
 # $URL$
 
 =head1 NAME
 
-OPS::MooseX::Role::Config
+FrBr::Common::MooseX::Role::Config
 
 =head1 DESCRIPTION
 
@@ -31,8 +31,7 @@ use utf8;
 
 use Carp ();
 
-#with 'MooseX::Getopt';
-with 'OPS::MooseX::Role::Types';
+with 'FrBr::Common::MooseX::Role::Types';
 
 use version; our $VERSION = qv("0.0.1");
 
