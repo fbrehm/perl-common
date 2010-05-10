@@ -37,6 +37,15 @@ use version; our $VERSION = qv("0.0.1");
 
 ############################################################################
 
+=head1 Benötigte Funktionen
+
+=cut
+
+requires 'debug';                   # im Moose-Objekt FrBr::Common::MooseX:App
+requires 'init_app';                # im Moose-Objekt FrBr::Common::MooseX:App
+
+############################################################################
+
 =head1 Attribute
 
 Eigene Attribute
@@ -85,6 +94,7 @@ has 'cfg_dir' => (
     documentation   => 'Verzeichnis der Konfigurationsdateien',
     writer          => '_set_cfg_dir',
     coerce          => 1,
+    metaclass       => 'MooseX::Getopt::Meta::Attribute',
     cmd_flag        => 'cfg-dir',
     cmd_aliases     => 'cfgdir',
 );
@@ -264,6 +274,26 @@ sub BUILD {
     $self->read_config_file();
     $self->evaluate_config();
 }
+
+#---------------------------------------------------------------------------
+
+after 'init_app' => sub {
+
+    my $self = shift;
+
+    $self->read_config_file();
+    $self->evaluate_config();
+
+    if ( $self->verbose >= 2 ) {
+
+        my $tmp;
+        for my $f ( 'configuration_evaluated', 'configuration_read', 'cfg_stem', 'cfg_dir', 'config', 'default_config', 'used_cmd_params', ) {
+            $tmp = $self->$f();
+        }
+
+    }
+
+};
 
 #---------------------------------------------------------------------------
 

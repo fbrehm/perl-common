@@ -165,6 +165,30 @@ sub _build_exit_code {
     return 0;
 }
 
+#-------------------------
+
+=head2 app_initialized
+
+Wurde die Anwendung initialisiert
+
+=cut
+
+has app_initialized => (
+    is              => 'rw',
+    isa             => 'Bool',
+    traits          => [ 'NoGetopt' ],
+    lazy            => 1,
+    required        => 1,
+    builder         => '_build_app_initialized',
+    documentation   => 'Wurde die Anwendung initialisiert?',
+);
+
+#------
+
+sub _build_app_initialized {
+    return 0;
+}
+
 #-----------------------------------------
 
 =head2 log4perl_cfg_file
@@ -263,17 +287,6 @@ sub OK    { 0 }
 sub ERROR { 1 }
 sub FATAL { 2 }
 
-#---------------------------------------------------------------------------
-
-before BUILD => sub {
-
-    my $self = shift;
-    $self->_init_log();
-
-    $self->exit_code( OK() );
-
-};
-
 #---------------------------------
 
 =head2 BUILD()
@@ -295,8 +308,49 @@ sub BUILD {
 #        $self->debug( "Anwendungsobjekt vor der Db-Schema-Initialisierung: ", $self );
 #    }
 
+}
+
+#---------------------------------------------------------------------------
+
+before BUILD => sub {
+
+    my $self = shift;
+    $self->_init_log();
+
+    $self->exit_code( OK() );
+
+};
+
+#---------------------------------
+
+=head2 after BUILD ...
+
+=cut
+
+after 'BUILD' => sub {
+
+    my $self = shift;
+    $self->init_app() unless $self->app_initialized;
+
+    $self->debug( "Anwendungsobjekt: ", $self ) if $self->verbose >= 3;
     $self->debug( "Bereit zum Kampf - äh - was auch immer." );
 
+};
+
+#---------------------------------
+
+=head2 init_app( )
+
+Initialisiert nach dem BUILD alles.
+
+=cut
+
+sub init_app {
+
+    my $self = shift;
+
+    $self->debug( "Initialisiere Anwendung ..." );
+    $self->app_initialized(1);
 }
 
 #---------------------------------
