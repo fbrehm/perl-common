@@ -367,8 +367,48 @@ sub evaluate_config {
     return if $self->configuration_evaluated;
 
     if ( $self->config and keys %{ $self->config } ) {
+
+        $self->config->{'log'} = {} unless $self->config->{'log'};
+
+        for my $key ( keys %{ $self->config } ) {
+
+            if ( lc($key) eq 'log' and ref( $self->config->{$key} ) and ref( $self->config->{$key} ) eq 'HASH' ) {
+
+                for my $log_key ( keys %{ $self->config->{$key} } ) {
+
+                    my $val = $self->config->{$key}{$log_key};
+
+                    if ( $log_key =~ /^dir$/i ) {
+                        $self->debug( sprintf( "Gefunden: \$self->config->{%s}{%s} -> '%s'", $key, $log_key, $val ) );
+                        $self->config->{'log'}{'dir'} = dir->new($val)->absolute->stringify;
+                    }
+
+                    if ( $log_key =~ /^stderror$/i ) {
+                        $self->debug( sprintf( "Gefunden: \$self->config->{%s}{%s} -> '%s'", $key, $log_key, $val ) );
+                        $self->config->{'log'}{'stderror'} = $val;
+                    }
+
+                    if ( $log_key =~ /^stdout$/i and $val ) {
+                        $self->debug( sprintf( "Gefunden: \$self->config->{%s}{%s} -> '%s'", $key, $log_key, $val ) );
+                        $self->config->{'log'}{'stdout'} = $val;
+                    }
+
+                }
+
+            }
+
+            my $val = $self->config->{$key};
+
+            if ( $key =~ /^production[_\-]?state$/i ) {
+                $self->debug( sprintf( "Gefunden: \$self->config->{%s} -> '%s'", $key, $val ) );
+                $self->production_state($val) if $key =~ /^production[_\-]?state$/i;
+            }
+
+        }
+
         $self->config->{'log'}{'dir'} = dir->new( $self->basedir, 'log' )->stringify unless $self->config->{'log'}{'dir'};
         $self->config->{'log'}{'stderror'} = 'error.log' unless exists $self->config->{'log'}{'stderror'};
+
     }
 
     $self->used_cmd_params( {} );

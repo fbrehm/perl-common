@@ -150,6 +150,29 @@ sub _build_ftp_auto_login {
 
 #---------------------------------------------------------------------------
 
+=head2 ftp_auto_init
+
+Flag, ob das Net::FTP-Objekt bei der Objektinitialisierung mit initialisiert werden soll
+
+=cut
+
+has 'ftp_auto_init' => (
+    is              => 'rw',
+    isa             => 'Bool',
+    lazy            => 1,
+    traits          => [ 'NoGetopt' ],
+    builder         => '_build_ftp_auto_init',
+    documentation   => 'BOOL: Flag, ob das Net::FTP-Objekt bei der Objektinitialisierung mit initialisiert werden soll.',
+);
+
+#--------------------
+
+sub _build_ftp_auto_init {
+    return 1;
+}
+
+#---------------------------------------------------------------------------
+
 =head2 ftp_host
 
 Der Hostname oder die IP-Adresse des FTP-Servers
@@ -372,10 +395,11 @@ after 'evaluate_config' => sub {
 
     my $self = shift;
 
+    #return if $self->configuration_evaluated;
     $self->debug( "Werte FTP-Konfigurationsdinge aus ..." );
     return unless $self->config and keys %{ $self->config };
 
-    my @ConfigKeys = qw( host user password blocksize port timeout passive hash_size auto_login );
+    my @ConfigKeys = qw( host user password blocksize port timeout passive hash_size );
 
     for my $key ( keys %{ $self->config } ) {
 
@@ -386,10 +410,10 @@ after 'evaluate_config' => sub {
             my $r = $p;
             $r =~ s/_/\[_-\]\?/g;
             $r = "^ftp[_\-]?$r\$";
-            $self->debug( sprintf( "Regex 1: '%s'", $r ) ) if $self->verbose >= 2;
-            unless ( self->used_cmd_params->{$f} ) {
+            $self->debug( sprintf( "Regex 1: '%s'", $r ) ) if $self->verbose >= 4;
+            unless ( $self->used_cmd_params->{$f} ) {
                 if ( $key =~ /$r/i ) {
-                    $self->debug( sprintf( "Gefunden: \$self->config->{%s} -> '%s'", $key, $val ) );
+                    $self->debug( sprintf( "Gefunden: \$self->config->{%s} -> '%s'", $key, ( defined $val ? $val : '<undef>' ) ) ) if $self->verbose >= 2;
                     $self->$f($val);
                 }
             }
@@ -409,11 +433,11 @@ after 'evaluate_config' => sub {
                     my $r = $p;
                     $r =~ s/_/\[_-\]\?/g;
                     $r = "^$r\$";
-                    $self->debug( sprintf( "Regex 2: '%s'", $r ) ) if $self->verbose >= 2;
+                    $self->debug( sprintf( "Regex 2: '%s'", $r ) ) if $self->verbose >= 4;
 
-                    unless ( self->used_cmd_params->{$f} ) {
+                    unless ( $self->used_cmd_params->{$f} ) {
                         if ( $ftp_key =~ /$r/i ) {
-                            $self->debug( sprintf( "Gefunden: \$self->config->{%s}{%s} -> '%s'", $key, $ftp_key, $val ) );
+                            $self->debug( sprintf( "Gefunden: \$self->config->{%s}{%s} -> '%s'", $key, $ftp_key, ( defined $val ? $val : '<undef>' ) ) ) if $self->verbose >= 2;
                             $self->$f($val);
                         }
                     }
@@ -436,13 +460,15 @@ after 'init_app' => sub {
     if ( $self->verbose >= 2 ) {
 
         my $tmp;
-        for my $f ( 'ftp_connected', 'ftp_auto_login', 'ftp_host', 'ftp_user', 'ftp_password', 'ftp_blocksize', 'ftp_port', 'ftp_timeout', 'ftp_passive', 'ftp_hash_size' ) {
+        for my $f ( 'ftp_connected', 'ftp_auto_login', 'ftp_auto_init', 'ftp_host',
+                    'ftp_user', 'ftp_password', 'ftp_blocksize', 'ftp_port',
+                    'ftp_timeout', 'ftp_passive', 'ftp_hash_size' ) {
             $tmp = $self->$f();
         }
 
     }
 
-    $self->init_ftp();
+    $self->init_ftp() if $self->ftp_auto_init;
 
 };
 
@@ -547,13 +573,9 @@ sub logout_ftp {
         return;
     }
 
-    if ( $self->ftp_connected ) {
-
-        $self->debug( "Abmeldung vom FTP-Server ..." );
-        $ftp->quit;
-        $self->_set_ftp_connected(0);
-
-    }
+    $self->debug( "Abmeldung vom FTP-Server ..." );
+    $ftp->quit;
+    $self->_set_ftp_connected(0);
 
     $self->_clear_ftp();
 
@@ -571,11 +593,11 @@ sub DEMOLISH {
 
     my $self = shift;
 
-    $self->debug( "Verschwinde ..." );
     if ( $self->ftp ) {
-        $self->debug( "Selbstzerstörung ..." );  
+        $self->debug( "Selbstzerstörung FTP ..." );  
         $self->logout_ftp;
     }
+    $self->debug( "Verschwinde ..." );
 
 }
 
