@@ -381,6 +381,60 @@ sub _build_ftp_hash_size {
     return 1024;
 }
 
+#-------------------------
+
+=head2 ftp_local_dir
+
+Lokales Datenverzeichnis
+
+=cut
+
+has 'ftp_local_dir' => (
+    is              => 'rw',
+    isa             => 'Path::Class::Dir',
+    traits          => [ 'Getopt' ],
+    coerce          => 1,
+    lazy            => 1,
+    required        => 1,
+    builder         => '_build_ftp_local_dir',
+    documentation   => 'Lokales Datenverzeichnis',
+    cmd_flag        => 'ftp-local-dir',
+    cmd_aliases     => [ 'local-dir' ],
+);
+
+#------
+
+sub _build_ftp_local_dir {
+    return dir->new( $FindBin::Bin, 'data' )->absolute;
+}
+
+#-------------------------
+
+=head2 ftp_remote_dir
+
+Datenverzeichnis auf dem FTP-Server
+
+=cut
+
+has 'ftp_remote_dir' => (
+    is              => 'rw',
+    isa             => 'Path::Class::Dir',
+    traits          => [ 'Getopt' ],
+    coerce          => 1,
+    lazy            => 1,
+    required        => 1,
+    builder         => '_build_ftp_remote_dir',
+    documentation   => 'Datenverzeichnis auf dem FTP-Server',
+    cmd_flag        => 'ftp-remote-dir',
+    cmd_aliases     => [ 'remote-dir' ],
+);
+
+#------
+
+sub _build_ftp_remote_dir {
+    return dir->new( '/' );
+}
+
 ############################################################################
 
 =head1 METHODS
@@ -399,7 +453,7 @@ after 'evaluate_config' => sub {
     $self->debug( "Werte FTP-Konfigurationsdinge aus ..." );
     return unless $self->config and keys %{ $self->config };
 
-    my @ConfigKeys = qw( host user password blocksize port timeout passive hash_size );
+    my @ConfigKeys = qw( host user password blocksize port timeout passive hash_size local_dir remote_dir );
 
     for my $key ( keys %{ $self->config } ) {
 
@@ -462,7 +516,8 @@ after 'init_app' => sub {
         my $tmp;
         for my $f ( 'ftp_connected', 'ftp_auto_login', 'ftp_auto_init', 'ftp_host',
                     'ftp_user', 'ftp_password', 'ftp_blocksize', 'ftp_port',
-                    'ftp_timeout', 'ftp_passive', 'ftp_hash_size' ) {
+                    'ftp_timeout', 'ftp_passive', 'ftp_hash_size', 'ftp_local_dir',
+                    'ftp_remote_dir', ) {
             $tmp = $self->$f();
         }
 
@@ -485,6 +540,14 @@ sub init_ftp {
     my $self = shift;
 
     cluck( "Guck mal: " ) if $self->verbose >= 4;
+
+    # Wechsel in das lokale Arbeitsverzeichnis
+    $self->debug( sprintf( "Wechsel in das Arbeitsverzeichnis '%s' ...", $self->ftp_local_dir->stringify ) );
+    unless ( chdir $self->ftp_local_dir->stringify ) {
+        $self->error( sprintf( "Konnte nicht nach '%s' wechseln: %s", $self->ftp_local_dir->stringify, $! ) );
+        return undef;
+    }
+
     $self->debug( "Initialisiere Net::FTP-Objekt ..." );
 
     my $ftp_params = {
