@@ -32,7 +32,7 @@ use FindBin;
 use Encode qw( decode_utf8 encode_utf8 );
 use Data::Dump;
 
-use Carp ();
+use Carp;
 
 with 'FrBr::Common::MooseX::Role::CommonOpts';
 
@@ -330,7 +330,7 @@ before BUILD => sub {
 after 'BUILD' => sub {
 
     my $self = shift;
-    $self->init_app() unless $self->app_initialized;
+    $self->_init_app() unless $self->app_initialized;
 
     $self->debug( "Anwendungsobjekt: ", $self ) if $self->verbose >= 3;
     $self->debug( "Bereit zum Kampf - äh - was auch immer." );
@@ -339,9 +339,26 @@ after 'BUILD' => sub {
 
 #---------------------------------
 
-=head2 init_app( )
+=head2 _init_app( )
 
 Initialisiert nach dem BUILD alles.
+
+=cut
+
+sub _init_app {
+
+    my $self = shift;
+
+    $self->debug( "Initialisiere Anwendung ..." );
+    $self->init_app();
+    $self->app_initialized(1);
+}
+
+#---------------------------------
+
+=head2 init_app( )
+
+Initialisierung als Haken für andere Rollen und Objekte
 
 =cut
 
@@ -349,8 +366,27 @@ sub init_app {
 
     my $self = shift;
 
-    $self->debug( "Initialisiere Anwendung ..." );
-    $self->app_initialized(1);
+    $self->debug( "Initialisierung beginnt ..." ) if $self->verbose >= 2;
+
+}
+
+#---------------------------------
+
+=head2 run( )
+
+Dummy-Funktion zum Start der Anwendung nach der Initialisierung.
+
+Muss in abgeleiteten Objekten überschrieben werden.
+
+=cut
+
+sub run {
+
+    my $self = shift;
+
+    $self->error( "run() im " . __PACKAGE__ . "-Objekt ist nur eine Dummy-Funktion." );
+    confess( "Dummy-Funktion." );
+
 }
 
 #---------------------------------

@@ -510,6 +510,8 @@ after 'init_app' => sub {
 
     my $self = shift;
 
+    return if $self->app_initialized;
+
     $self->debug( "Initialisiere ..." );
     if ( $self->verbose >= 2 ) {
 
@@ -605,16 +607,19 @@ sub login_ftp {
     }
     my $ftp = $self->ftp;
 
-    if ( $ftp->login( $self->ftp_user, $self->ftp_password ) ) {
-        $self->debug( "FTP-Login erfolgreich." );
-        $self->_set_ftp_connected(1);
-        return 1;
-    }
-    else {
+    unless ( $ftp->login( $self->ftp_user, $self->ftp_password ) ) {
         $self->warn( sprintf( "FTP-Login misslungen: %s", $ftp->message ) );
+        return undef;
     }
 
-    return undef;
+    $self->debug( "FTP-Login erfolgreich." );
+    $self->_set_ftp_connected(1);
+
+    $self->debug( sprintf( "Wechsele in das FTP-Verzeichnis '%s' ...", $self->ftp_remote_dir->stringify ) );
+    my $result = $ftp->cwd( $self->ftp_remote_dir->stringify );
+    $self->error( sprintf( "Konnte nicht in das FTP-Verzeichnis '%s' wechseln: %s", $self->ftp_remote_dir->stringify, $ftp->message ) ) unless $result;
+
+    return $result;
 
 }
 

@@ -281,6 +281,9 @@ after 'init_app' => sub {
 
     my $self = shift;
 
+    return if $self->app_initialized;
+
+    $self->debug( "Initialisiere ..." );
     $self->read_config_file();
     $self->evaluate_config();
 
