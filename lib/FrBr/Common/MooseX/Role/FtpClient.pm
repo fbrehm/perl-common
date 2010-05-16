@@ -23,6 +23,9 @@ use Moose::Util::TypeConstraints;
 use Encode qw( decode_utf8 encode_utf8 );
 use Net::FTP;
 use Net::Domain qw( domainname );
+use DateTime;
+use DateTime::Format::Strptime;
+use FindBin;
 
 use utf8;
 
@@ -69,6 +72,31 @@ subtype 'Net::FTP'
     => message { "Das übergebene Objekt muss vom Typ 'Net::FTP' sein" };
 
 =back
+
+############################################################################
+
+=head1 Private Variables
+
+=cut
+
+my $month_map = {
+    'jan'   =>  1,
+    'feb'   =>  2,
+    'mar'   =>  3,
+    'apr'   =>  4,
+    'may'   =>  5,
+    'jun'   =>  6,
+    'jul'   =>  7,
+    'aug'   =>  8,
+    'sep'   =>  9,
+    'oct'   => 10,
+    'nov'   => 11,
+    'dec'   => 12,
+};
+
+our $LocalTZ = DateTime::TimeZone->new( name => 'local' );
+
+############################################################################
 
 =head1 ATTRIBUTES
 
@@ -513,6 +541,8 @@ after 'init_app' => sub {
     return if $self->app_initialized;
 
     $self->debug( "Initialisiere ..." );
+    $self->debug( "Lokale Zeitzone: ", $LocalTZ );
+
     if ( $self->verbose >= 2 ) {
 
         my $tmp;
@@ -666,6 +696,247 @@ sub DEMOLISH {
         $self->logout_ftp;
     }
     $self->debug( "Verschwinde ..." );
+
+}
+
+#---------------------------------------------------------------------------
+
+=head2 dir_list( [ $dir ] )
+
+Erzeugt ein Verzeichnis-Listing des FTP-Servers entweder des übergebenen Verzeichnisses
+oder, wenn keins übergeben, des aktuellen Verzeichnisses.
+
+Die Standard-Verzeichnisse '.' und '..' werden ausgeblendet.
+
+Wenn nicht mit dem FTP-Server verbunden oder darauf angemeldet, stirbt dieses Methode
+mit einem Callstack.
+
+Rückgabe:
+
+eine Array-Ref der Form:
+
+    $list = [
+        {
+            'name' => 'ldap.dump.yearly.gz',
+            'type' => 'f',                     # 'f' für normale Datei oder 'd' für Verzeichnis (andere?)
+            'perm' => {
+                'string' => 'rw-r--r--',
+                'user'   => { 'r' => 1, 'w' => 1, 'x' => 0, 's' => 0, },
+                'group'  => { 'r' => 1, 'w' => 0, 'x' => 0, 's' => 0, },
+                'other'  => { 'r' => 1, 'w' => 0, 'x' => 0, 's' => 0, },
+            },
+            'num_hardlinks' => 1,
+            'user'  => 'b047934',
+            'group' => 'cust',
+            'size'  => 645639,
+            'mtime' => {
+                'string' => 'Jan  2 15:24',
+                't' => <DateTime-Objekt mit dem aktuellen Jahr als Jahr und Sekunde 0>,
+            },
+        },
+    ];
+
+=cut
+
+sub dir_list {
+
+    my $self = shift;
+    my $dir  = shift;
+
+    unless ( $self->has_ftp ) {
+        $self->error( "FTP nicht initialisiert." );
+        confess "FTP nicht initialisiert.";
+    }
+
+    unless ( $self->ftp_connected ) {
+        $self->error( "Nicht am FTP-Server angemeldet." );
+        confess "Nicht am FTP-Server angemeldet.";
+    }
+
+    # "Mar  2 16:35"
+    my $Strp = new DateTime::Format::Strptime(
+        pattern   => '%b %e %H:%M',
+        locale    => 'en_US',
+        time_zone => 'Europe/Berlin',
+    );
+
+
+    my $list = [];
+    my $olist = defined $dir ? $self->ftp->dir($dir) : $self->ftp->dir;
+
+    for my $orow ( @$olist ) {
+
+        my ( $perm_string, $type, $num_hardlinks, $user, $group, $size, $mtime_str, $name );
+
+        my $row = $orow;
+        my $entry = {};
+
+        $row =~ s/^\s*//;
+        unless ( ( $perm_string ) = $row =~ /^(\S+)\s+/ ) {
+            $self->warn( sprintf( "Keine Permission-Angaben in Zeile '%s' gefunden.", $orow ) );
+            next;
+        }
+        $row =~ s/^\S+\s+//;
+        ( $type ) = $perm_string =~ /^(.)/;
+        $perm_string =~ s/^.//;
+        $type = 'f' if $type eq '-';
+        $entry->{'type'} = $type;
+        $entry->{'perm'} = {};
+        $entry->{'perm'}{'string'} = $perm_string;
+
+        for my $t ( 'user', 'group', 'other' ) {
+            $entry->{'perm'}{$t} = {};
+            $entry->{'perm'}{$t}{'r'} = undef;
+            $entry->{'perm'}{$t}{'w'} = undef;
+            $entry->{'perm'}{$t}{'x'} = undef;
+            $entry->{'perm'}{$t}{'s'} = undef;
+        }
+
+        my ( $uperm, $gperm, $operm ) = $perm_string =~ /^(...)(...)(...)/;
+
+        $entry->{'perm'}{'user'}{'r'} = 1 if $uperm =~ /r/i;
+        $entry->{'perm'}{'user'}{'w'} = 1 if $uperm =~ /w/i;
+        $entry->{'perm'}{'user'}{'x'} = 1 if $uperm =~ /x/i;
+        if ( $uperm =~ /s/i ) {
+            $entry->{'perm'}{'user'}{'x'} = 1;
+            $entry->{'perm'}{'user'}{'s'} = 1;
+        }
+
+        $entry->{'perm'}{'group'}{'r'} = 1 if $gperm =~ /r/i;
+        $entry->{'perm'}{'group'}{'w'} = 1 if $gperm =~ /w/i;
+        $entry->{'perm'}{'group'}{'x'} = 1 if $gperm =~ /x/i;
+        if ( $gperm =~ /s/i ) {
+            $entry->{'perm'}{'group'}{'x'} = 1;
+            $entry->{'perm'}{'group'}{'s'} = 1;
+        }
+
+        $entry->{'perm'}{'other'}{'r'} = 1 if $operm =~ /r/i;
+        $entry->{'perm'}{'other'}{'w'} = 1 if $operm =~ /w/i;
+        $entry->{'perm'}{'other'}{'x'} = 1 if $operm =~ /x/i;
+        if ( $operm =~ /[st]/i ) {
+            $entry->{'perm'}{'other'}{'x'} = 1;
+            $entry->{'perm'}{'other'}{'s'} = 1;
+        }
+
+        unless ( ( $num_hardlinks ) = $row =~ /^(\S+)\s+/ ) {
+            $self->warn( sprintf( "Keine Angaben zur Anzahl der Hardlinks in Zeile '%s' gefunden.", $orow ) );
+            next;
+        }
+        $row =~ s/^\S+\s+//;
+        $entry->{'num_hardlinks'} = $num_hardlinks;
+
+        unless ( ( $user ) = $row =~ /^(\S+)\s+/ ) {
+            $self->warn( sprintf( "Keine Nutzer-Angaben in Zeile '%s' gefunden.", $orow ) );
+            next;
+        }
+        $row =~ s/^\S+\s+//;
+        $entry->{'user'} = $user;
+
+        unless ( ( $group ) = $row =~ /^(\S+)\s+/ ) {
+            $self->warn( sprintf( "Keine Gruppen-Angaben in Zeile '%s' gefunden.", $orow ) );
+            next;
+        }
+        $row =~ s/^\S+\s+//;
+        $entry->{'group'} = $group;
+
+        unless ( ( $size ) = $row =~ /^(\d+)\s+/ ) {
+            $self->warn( sprintf( "Keine Größen-Angaben in Zeile '%s' gefunden.", $orow ) );
+            next;
+        }
+        $row =~ s/^\d+\s+//;
+        $entry->{'size'} = $size;
+
+        unless ( ( $mtime_str ) = $row =~ /^(\S+\s+\S+\s+\S+)\s+/ ) {
+            $self->warn( sprintf( "Keine Dateidatums-Angaben in Zeile '%s' gefunden.", $orow ) );
+            next;
+        }
+        $row =~ s/^\S+\s+\S+\s+\S+\s+//;
+        $entry->{'mtime'} = {};
+        $entry->{'mtime'}{'string'} = $mtime_str;
+        $entry->{'mtime'}{'t'} = $self->_parse_date($mtime_str);
+
+        $name = $row;
+        undef $row;
+        if ( ( ! defined $name  ) or $name eq '' ) {
+            $self->warn( sprintf( "Keine Dateiname in Zeile '%s' gefunden.", $orow ) );
+            next;
+        }
+
+        if ( $name eq '.' or $name eq '..' ) {
+            $self->debug( sprintf( "Die Datei '%s' ist Standard und wird übersprungen.", $name ) );
+            next;
+        }
+
+        $entry->{'name'} = $name; 
+
+#        my $file_dt = $Strp->parse_datetime($mtime_str);
+#        if ( $file_dt ) {
+#            $self->debug( sprintf( "Dateidatum von '%s': %s" ), $name, $file_dt->strftime('%Y-%m-%d %H:%M:%S') ) if $self->verbose >= 3;
+#            while ( DateTime->compare( $file_dt, $now ) > 0 ) {
+#                $file_dt->subtract( 'years' => 1 );
+#                $self->debug( sprintf( "Dateidatum von '%s': %s" ), $name, $file_dt->strftime('%Y-%m-%d %H:%M:%S') ) if $self->verbose >= 3;
+#            }
+#        }
+
+        push @$list, $entry;
+
+    }
+
+    return $list;
+
+}
+
+#---------------------------------------------------------------------------
+
+=head2 _parse_date( $date_str )
+
+Parst ein Datum der Form "May 15 07:43" und gibt es als DateTime-Objekt zurück.
+
+=cut
+
+sub _parse_date {
+
+    my $self = shift;
+    my $date_str = shift;
+
+    my ( $month_str, $day, $hour, $minute );
+
+    unless ( ( $month_str, $day, $hour, $minute ) = $date_str =~ /^(\S{3})\S*\s+(\d+)\s+(\d+):(\d+)/ ) {
+        $self->warn( sprintf( "Konnte Datum '%s' nicht auseinandernehmen.", $date_str ) );
+        return undef;
+    }
+
+    $month_str = lc($month_str);
+
+    my $month = $month_map->{$month_str};
+    unless ( $month ) {
+        $self->warn( sprintf( "Konnte Monatsangabe '%s' in Datum '%s' nicht interpretieren.", $month_str, $date_str ) );
+        return undef;
+    }
+
+    my $now = DateTime->now()->set_time_zone( $LocalTZ );
+
+    my $this_year = $now->year;
+    my $create_hash = {
+        year      => $this_year,
+        month     => $month,
+        day       => $day + 0,
+        hour      => $hour + 0,
+        minute    => $minute + 0,
+        second    => 0,
+        time_zone => 'UTC',
+    };
+    $self->debug( "Erstelle DateTime-Objekt aus folgenden Angaben: ", $create_hash ) if $self->verbose >= 3;
+
+    my $file_dt = DateTime->new( %$create_hash );
+    $self->debug( sprintf( "Erstelltes Datum: '%s'", $file_dt->strftime( '%F %T %Z' ) ) ) if $self->verbose >= 3;
+
+    while ( DateTime->compare( $file_dt, $now ) > 0 ) {
+        $file_dt->subtract( 'years' => 1 );
+        $self->debug( sprintf( "Ziehe ein Jahr ab, neues Datum: '%s'", $file_dt->strftime( '%F %T %Z' ) ) ) if $self->verbose >= 3;
+    }
+
+    return $file_dt;
 
 }
 
