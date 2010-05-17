@@ -94,7 +94,7 @@ my $month_map = {
     'dec'   => 12,
 };
 
-our $LocalTZ = DateTime::TimeZone->new( name => 'local' );
+#our $LocalTZ = DateTime::TimeZone->new( name => 'local' );
 
 ############################################################################
 
@@ -463,6 +463,33 @@ sub _build_ftp_remote_dir {
     return dir->new( '/' );
 }
 
+#-------------------------
+
+=head2 ftp_remote_timezone
+
+Zeitzone auf dem FTP-Server
+
+=cut
+
+has 'ftp_remote_timezone' => (
+    is              => 'rw',
+    isa             => 'FrBr::Types::TimeZone',
+    traits          => [ 'Getopt' ],
+    coerce          => 1,
+    lazy            => 1,
+    required        => 1,
+    builder         => '_build_ftp_remote_timezone',
+    documentation   => 'Die Zeitzine auf dem FTP-Server',
+    cmd_flag        => 'ftp-remote-timezone',
+    cmd_aliases     => [ 'remote-timezone' ],
+);
+
+#------
+
+sub _build_ftp_remote_timezone {
+    return DateTime::TimeZone->new( name => 'UTC' );
+}
+
 ############################################################################
 
 =head1 METHODS
@@ -481,7 +508,7 @@ after 'evaluate_config' => sub {
     $self->debug( "Werte FTP-Konfigurationsdinge aus ..." );
     return unless $self->config and keys %{ $self->config };
 
-    my @ConfigKeys = qw( host user password blocksize port timeout passive hash_size local_dir remote_dir );
+    my @ConfigKeys = qw( host user password blocksize port timeout passive hash_size local_dir remote_dir remote_timezone );
 
     for my $key ( keys %{ $self->config } ) {
 
@@ -541,7 +568,7 @@ after 'init_app' => sub {
     return if $self->app_initialized;
 
     $self->debug( "Initialisiere ..." );
-    $self->debug( "Lokale Zeitzone: ", $LocalTZ );
+    #$self->debug( "Lokale Zeitzone: ", $LocalTZ );
 
     if ( $self->verbose >= 2 ) {
 
@@ -549,7 +576,7 @@ after 'init_app' => sub {
         for my $f ( 'ftp_connected', 'ftp_auto_login', 'ftp_auto_init', 'ftp_host',
                     'ftp_user', 'ftp_password', 'ftp_blocksize', 'ftp_port',
                     'ftp_timeout', 'ftp_passive', 'ftp_hash_size', 'ftp_local_dir',
-                    'ftp_remote_dir', ) {
+                    'ftp_remote_dir', 'ftp_remote_timezone', ) {
             $tmp = $self->$f();
         }
 
@@ -869,15 +896,6 @@ sub dir_list {
 
         $entry->{'name'} = $name; 
 
-#        my $file_dt = $Strp->parse_datetime($mtime_str);
-#        if ( $file_dt ) {
-#            $self->debug( sprintf( "Dateidatum von '%s': %s" ), $name, $file_dt->strftime('%Y-%m-%d %H:%M:%S') ) if $self->verbose >= 3;
-#            while ( DateTime->compare( $file_dt, $now ) > 0 ) {
-#                $file_dt->subtract( 'years' => 1 );
-#                $self->debug( sprintf( "Dateidatum von '%s': %s" ), $name, $file_dt->strftime('%Y-%m-%d %H:%M:%S') ) if $self->verbose >= 3;
-#            }
-#        }
-
         push @$list, $entry;
 
     }
@@ -914,7 +932,7 @@ sub _parse_date {
         return undef;
     }
 
-    my $now = DateTime->now()->set_time_zone( $LocalTZ );
+    my $now = DateTime->now()->set_time_zone( $self->local_timezone );
 
     my $this_year = $now->year;
     my $create_hash = {
@@ -924,7 +942,7 @@ sub _parse_date {
         hour      => $hour + 0,
         minute    => $minute + 0,
         second    => 0,
-        time_zone => 'UTC',
+        time_zone => $self->ftp_remote_timezone,
     };
     $self->debug( "Erstelle DateTime-Objekt aus folgenden Angaben: ", $create_hash ) if $self->verbose >= 3;
 

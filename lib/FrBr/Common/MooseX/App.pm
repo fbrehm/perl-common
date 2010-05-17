@@ -31,6 +31,7 @@ use File::Basename;
 use FindBin;
 use Encode qw( decode_utf8 encode_utf8 );
 use Data::Dump;
+use DateTime;
 
 use Carp;
 
@@ -254,6 +255,21 @@ sub log {
     return $_[0]->logger;
 }
 
+#-----------------------------------------
+
+has 'local_timezone' => (
+    is              => 'ro',
+    isa             => 'FrBr::Types::TimeZone',
+    traits          => [ 'NoGetopt' ],
+    lazy            => 1,
+    builder         => '_build_local_timezone',
+    documentation   => 'Die lokale Zeitzone als DateTime::TimeZone-Objekt.',
+);
+
+sub _build_local_timezone {
+    return DateTime::TimeZone->new( name => 'local' );
+}
+
 #############################################################################################
 
 # Ändern der Eigenschaften einiger geerbter Attribute
@@ -367,6 +383,16 @@ sub init_app {
     my $self = shift;
 
     $self->debug( "Initialisierung beginnt ..." ) if $self->verbose >= 2;
+
+    if ( $self->verbose >= 2 ) {
+
+        my $tmp;
+
+        for my $f ( 'local_timezone' ) {
+            $tmp = $self->$f();
+        }
+
+    }
 
 }
 

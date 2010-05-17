@@ -45,6 +45,14 @@ subtype 'XML::Simple'
     => where { $_->isa('XML::Simple') }
     => message { "Das übergebene Objekt muss vom Typ 'XML::Simple' sein" };
 
+subtype 'FrBr::Types::TimeZone' => as class_type('DateTime::TimeZone');
+
+coerce 'FrBr::Types::TimeZone'
+    => from 'Object'
+        => via { $_->isa('DateTime::TimeZone') ? $_ : Params::Coerce::coerce( 'DateTime::TimeZone', $_ ); }
+    => from 'Str'
+        => via { DateTime::TimeZone->new( name => $_ ) };
+
 subtype 'FrBr::Types::URI' => as class_type('URI');
 
 coerce 'FrBr::Types::URI'
