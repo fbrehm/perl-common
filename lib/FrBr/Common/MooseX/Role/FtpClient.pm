@@ -24,6 +24,7 @@ use Net::Domain qw( domainname );
 use DateTime;
 use DateTime::Format::Strptime;
 use FindBin;
+use Math::BigInt;
 
 use utf8;
 
@@ -950,6 +951,103 @@ sub _parse_date {
     }
 
     return $file_dt;
+
+}
+
+#---------------------------------------------------------------------------
+
+sub disk_usage {
+
+    my $self = shift;
+
+    unless ( $self->has_ftp ) {
+        $self->error( "FTP nicht initialisiert." );
+        confess "FTP nicht initialisiert.";
+    }
+
+    unless ( $self->ftp_connected ) {
+        $self->error( "Nicht am FTP-Server angemeldet." );
+        confess "Nicht am FTP-Server angemeldet.";
+    }
+
+    my $args = {};
+    if ( $_[0] and ref($_[0]) and ref($_[0]) eq 'HASH' ) {
+        $args = shift;
+    }
+
+    my @Items = @_;
+    unless ( scalar( @Items ) ) {
+        push @Items, '.';
+    }
+    $self->debug( "Versuche die Bytegrößen folgender Dinge festzustellen: ", \@Items );
+
+    my $total_size = Math::BigInt->new(0);
+    my @Sizes;
+
+    for my $item ( @Items ) {
+
+        $self->debug( sprintf( "Untersuche Eintrag '%s' ...", $item ) );
+        my $size = Math::BigInt->new(0);
+
+        if ( $item eq '.' ) {
+
+            my $dir_list = $self->dir_list();
+
+            for my $entry ( @$dir_list ) {
+
+                my $esize = $entry->{'size'};
+                $self->debug( sprintf( "Größe von '%s': %s Bytes.", $entry->{'name'}, $esize ) );
+                $size->badd( Math::BigInt->new( $esize ) );
+
+                if ( $entry->{'type'} eq 'd' ) {
+
+                    $self->debug( sprintf( "Wechsel in das Verzeichnis '%s' ...", $entry->{'name'} ) );
+                    if ( $self->ftp->cwd( $entry->{'name'} ) ) {
+
+                        my $dirsize = $self->disk_usage();
+
+                        $self->debug( "Wechsel in das Verzeichnis darüber." );
+                        $self->ftp->cdup;
+
+                        $size->badd( Math::BigInt->new( $dirsize ) );
+                    }
+                    else {
+                        $self->warn( sprintf( "Konnte nicht in das Verzeichnis '%s' wechseln: %s", $entry->{'name'}, $self->ftp->message ) );
+                    }
+
+                }
+            }
+
+        }
+        else {
+
+            $self->debug( sprintf( "Versuche Wechsel in das Verzeichnis '%s' ...", $item ) );
+            if ( $self->ftp->cwd( $item ) ) {
+
+                my $dirsize = $self->disk_usage();
+                $self->debug( "Wechsel in das Verzeichnis darüber." );
+                $self->ftp->cdup;
+                $size->badd( Math::BigInt->new( $dirsize ) );
+
+            }
+            else {
+                $self->debug( sprintf( "Dann ist '%s' wohl kein Verzeichnis: %s", $item, $self->ftp->message ) );
+                my $dir_list = $self->dir_list($item);
+                for my $entry ( @$dir_list ) {
+                    my $esize = $entry->{'size'};
+                    $self->debug( sprintf( "Größe von '%s': %s Bytes.", $entry->{'name'}, $esize ) );
+                    $size->badd( Math::BigInt->new( $esize ) );
+                }
+            }
+
+        }
+
+        push @Sizes, $size;
+        $total_size->badd( $size );
+
+    }
+
+    return wantarray ? ( map { $_->bstr } @Sizes ) : $total_size->bstr;
 
 }
 
