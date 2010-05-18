@@ -17,8 +17,6 @@ Rollen-Modul zum Einbinden eines FTP-Clients
 
 use Moose::Role;
 
-#use MooseX::Getopt::Meta::Attribute;
-#use MooseX::Getopt::Meta::Attribute::NoGetopt;
 use Moose::Util::TypeConstraints;
 use Encode qw( decode_utf8 encode_utf8 );
 use Net::FTP;
@@ -93,8 +91,6 @@ my $month_map = {
     'nov'   => 11,
     'dec'   => 12,
 };
-
-#our $LocalTZ = DateTime::TimeZone->new( name => 'local' );
 
 ############################################################################
 
@@ -568,7 +564,6 @@ after 'init_app' => sub {
     return if $self->app_initialized;
 
     $self->debug( "Initialisiere ..." );
-    #$self->debug( "Lokale Zeitzone: ", $LocalTZ );
 
     if ( $self->verbose >= 2 ) {
 
