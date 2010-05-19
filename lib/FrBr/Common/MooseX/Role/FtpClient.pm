@@ -913,12 +913,16 @@ sub _parse_date {
     my $self = shift;
     my $date_str = shift;
 
-    my ( $month_str, $day, $hour, $minute );
+    my ( $year, $month_str, $day, $hour, $minute );
 
-    unless ( ( $month_str, $day, $hour, $minute ) = $date_str =~ /^(\S{3})\S*\s+(\d+)\s+(\d+):(\d+)/ ) {
+    unless ( ( $month_str, $day, $hour, $minute, $year ) = $date_str =~ /^(\S{3})\S*\s+(\d+)\s+(?:(\d+):(\d+)|\d{4})/ ) {
         $self->warn( sprintf( "Konnte Datum '%s' nicht auseinandernehmen.", $date_str ) );
         return undef;
     }
+
+    $hour = 0 unless defined $hour;
+    $minute = 0 unless defined $minute;
+    $year = 0 unless defined $year;
 
     $month_str = lc($month_str);
 
@@ -930,9 +934,9 @@ sub _parse_date {
 
     my $now = DateTime->now()->set_time_zone( $self->local_timezone );
 
-    my $this_year = $now->year;
+    my $this_year = $year || $now->year;
     my $create_hash = {
-        year      => $this_year,
+        year      => $this_year + 0,
         month     => $month,
         day       => $day + 0,
         hour      => $hour + 0,
