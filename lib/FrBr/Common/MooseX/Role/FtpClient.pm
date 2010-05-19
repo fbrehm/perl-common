@@ -940,14 +940,14 @@ sub _parse_date {
         second    => 0,
         time_zone => $self->ftp_remote_timezone,
     };
-    $self->debug( "Erstelle DateTime-Objekt aus folgenden Angaben: ", $create_hash ) if $self->verbose >= 3;
+    $self->debug( "Erstelle DateTime-Objekt aus folgenden Angaben: ", $create_hash ) if $self->verbose >= 4;
 
     my $file_dt = DateTime->new( %$create_hash );
-    $self->debug( sprintf( "Erstelltes Datum: '%s'", $file_dt->strftime( '%F %T %Z' ) ) ) if $self->verbose >= 3;
+    $self->debug( sprintf( "Erstelltes Datum: '%s'", $file_dt->strftime( '%F %T %Z' ) ) ) if $self->verbose >= 4;
 
     while ( DateTime->compare( $file_dt, $now ) > 0 ) {
         $file_dt->subtract( 'years' => 1 );
-        $self->debug( sprintf( "Ziehe ein Jahr ab, neues Datum: '%s'", $file_dt->strftime( '%F %T %Z' ) ) ) if $self->verbose >= 3;
+        $self->debug( sprintf( "Ziehe ein Jahr ab, neues Datum: '%s'", $file_dt->strftime( '%F %T %Z' ) ) ) if $self->verbose >= 4;
     }
 
     return $file_dt;
@@ -1048,6 +1048,77 @@ sub disk_usage {
     }
 
     return wantarray ? ( map { $_->bstr } @Sizes ) : $total_size->bstr;
+
+}
+
+#---------------------------------------------------------------------------
+
+sub remove_recursive {
+
+    my $self = shift;
+
+    unless ( $self->has_ftp ) {
+        $self->error( "FTP nicht initialisiert." );
+        confess "FTP nicht initialisiert.";
+    }
+
+    unless ( $self->ftp_connected ) {
+        $self->error( "Nicht am FTP-Server angemeldet." );
+        confess "Nicht am FTP-Server angemeldet.";
+    }
+
+    my $args = {};
+    if ( $_[0] and ref($_[0]) and ref($_[0]) eq 'HASH' ) {
+        $args = shift;
+    }
+
+    my @Items = @_;
+    unless ( @Items ) {
+        my $msg = __PACKAGE__ . "->remove_recursive() ohne Argumente übergeben.";
+        $self->error($msg);
+        confess($msg) if $self->verbose;
+    }
+
+    $self->debug( "Versuche die folgenden Dinge zu löschen: ", \@Items );
+
+    for my $item ( @Items ) {
+
+        $self->debug( sprintf( "Versuche, Eintrag '%s' zu löschen ...", $item ) );
+
+        $self->debug( sprintf( "Versuche Wechsel in das Verzeichnis '%s' ...", $item ) );
+        if ( $self->ftp->cwd( $item ) ) {
+
+            my $dir_list = $self->dir_list();
+            my $dirs = [];
+            my $files = [];
+            for my $entry ( @$dir_list ) {
+                if ( $entry->{'type'} eq 'd' ) {
+                    push @$dirs, $entry->{'name'};
+                }
+                else {
+                    push @$files, $entry->{'name'};
+                }
+            }
+            $self->remove_recursive( @$dirs ) if scalar( @$dirs );
+            for my $f ( @$files ) {
+                $self->info( sprintf( "Lösche Datei '%s' ...", $f ) );
+                $self->ftp->delete( $f );
+            }
+
+            $self->debug( "Wechsel in das Verzeichnis darüber." );
+            $self->ftp->cdup;
+            $self->info( sprintf( "Lösche Verzeichnis '%s' ...", $item ) );
+            $self->ftp->rmdir( $item );
+
+        }
+        else {
+            $self->debug( sprintf( "Dann ist '%s' wohl kein Verzeichnis: %s", $item, $self->ftp->message ) );
+            $self->info( sprintf( "Lösche Datei '%s' ...", $item ) );
+            $self->ftp->delete( $item );
+        }
+    }
+
+    return 1;
 
 }
 
