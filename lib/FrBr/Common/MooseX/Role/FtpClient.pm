@@ -668,6 +668,9 @@ sub login_ftp {
     $self->debug( "FTP-Login erfolgreich." );
     $self->_set_ftp_connected(1);
 
+    $self->debug( "Setze Binärmodus ..." );
+    $ftp->binary;
+
     $self->debug( sprintf( "Wechsele in das FTP-Verzeichnis '%s' ...", $self->ftp_remote_dir->stringify ) );
     my $result = $ftp->cwd( $self->ftp_remote_dir->stringify );
     $self->error( sprintf( "Konnte nicht in das FTP-Verzeichnis '%s' wechseln: %s", $self->ftp_remote_dir->stringify, $ftp->message ) ) unless $result;
