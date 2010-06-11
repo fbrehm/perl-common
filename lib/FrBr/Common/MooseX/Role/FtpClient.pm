@@ -668,7 +668,7 @@ sub login_ftp {
     $self->debug( "FTP-Login erfolgreich." );
     $self->_set_ftp_connected(1);
 
-    $self->debug( "Setze Binärmodus ..." );
+    $self->debug( decode_utf8( "Setze Binärmodus ..." ) );
     $ftp->binary;
 
     $self->debug( sprintf( "Wechsele in das FTP-Verzeichnis '%s' ...", $self->ftp_remote_dir->stringify ) );
@@ -718,7 +718,7 @@ sub DEMOLISH {
     my $self = shift;
 
     if ( $self->ftp ) {
-        $self->debug( "Selbstzerstörung FTP ..." );  
+        $self->debug( decode_utf8( "Selbstzerstörung FTP ..." ) );  
         $self->logout_ftp;
     }
     $self->debug( "Verschwinde ..." );
@@ -1086,7 +1086,7 @@ sub remove_recursive {
         confess($msg) if $self->verbose;
     }
 
-    $self->debug( "Versuche die folgenden Dinge zu löschen: ", \@Items );
+    $self->debug( decode_utf8( "Versuche die folgenden Dinge zu löschen: " ), \@Items );
 
     for my $item ( @Items ) {
 
@@ -1108,7 +1108,7 @@ sub remove_recursive {
             }
             $self->remove_recursive( @$dirs ) if scalar( @$dirs );
             for my $f ( @$files ) {
-                $self->info( sprintf( "Lösche Datei '%s' ...", $f ) );
+                $self->info( decode_utf8( sprintf( "Lösche Datei '%s' ...", $f ) ) );
                 $self->ftp->delete( $f );
             }
 
@@ -1120,7 +1120,7 @@ sub remove_recursive {
         }
         else {
             $self->debug( sprintf( "Dann ist '%s' wohl kein Verzeichnis: %s", $item, $self->ftp->message ) );
-            $self->info( sprintf( "Lösche Datei '%s' ...", $item ) );
+            $self->info( decode_utf8( sprintf( "Lösche Datei '%s' ...", $item ) ) );
             $self->ftp->delete( $item );
         }
     }
