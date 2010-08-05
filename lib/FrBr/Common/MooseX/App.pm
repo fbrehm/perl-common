@@ -29,7 +29,7 @@ use Log::Log4perl;
 use Path::Class;
 use File::Basename;
 use FindBin;
-use Encode qw( decode_utf8 encode_utf8 );
+use Encode qw( decode_utf8 encode_utf8 is_utf8 );
 use Data::Dump;
 use DateTime;
 
@@ -507,7 +507,8 @@ sub _log {
 
     my @Msg = ();
     for my $m ( @$message ) {
-        push @Msg, encode_utf8($m);
+        my $msg = is_utf8($m) ? encode_utf8($m) : $m;
+        push @Msg, $msg;
     }
 
     local $Log::Log4perl::caller_depth = $depth;
