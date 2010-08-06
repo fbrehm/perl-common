@@ -665,6 +665,16 @@ Wrapper-Methode für Log::Log4perl::is_fatal()
 
 }
 
+#---------------------------------
+
+sub DEMOLISH {
+
+    my $self = shift;
+
+    $self->debug( "Ich demoliere mich mal selbst." );
+
+}
+
 #---------------------------------------------------------------------------
 
 no Moose::Role;
