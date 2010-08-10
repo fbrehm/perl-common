@@ -87,9 +87,11 @@ after 'evaluate_config' => sub {
         my $tmp = $self->testmode;
     }
 
-    for my $key ( keys %{ $self->config } ) {
-        my $val = $self->config->{$key};
-        $self->testmode($val) if $key =~ /^test[_-]?mode$/i;
+    unless ( $self->used_cmd_params->{'testmode'} ) {
+        for my $key ( keys %{ $self->config } ) {
+            my $val = $self->config->{$key};
+            $self->testmode($val) if $key =~ /^test[_-]?mode$/i;
+        }
     }
 
 };

@@ -252,8 +252,12 @@ after 'evaluate_config' => sub {
         $self->debug( "Werte Konfigurationsdinge aus ..." );
         for my $key ( keys %{ $self->config } ) {
             my $val = $self->config->{$key};
-            $self->piddir($val) if $key =~ /^pid[_-]?dir$/i;
-            $self->pidfile($val) if $key =~ /^pid[_-]?file$/i;
+            unless ( $self->used_cmd_params->{'piddir'} ) {
+                $self->piddir($val) if $key =~ /^pid[_-]?dir$/i;
+            }
+            unless ( $self->used_cmd_params->{'pidfile'} ) {
+                $self->pidfile($val) if $key =~ /^pid[_-]?file$/i;
+            }
         }
     }
 
