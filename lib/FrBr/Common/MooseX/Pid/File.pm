@@ -32,12 +32,7 @@ use Encode qw( decode_utf8 encode_utf8 is_utf8 );
 
 # Versionitis
 
-my $Revis = <<'ENDE';
-    $Revision$
-ENDE
-$Revis =~ s/^.*:\s*(\S+)\s*\$.*/$1/s;
-
-use version; our $VERSION = qv("0.1.0"); $VERSION .= " r" . $Revis;
+use version; our $VERSION = qv("0.1.0");
 
 #-----------------------------------------
 
