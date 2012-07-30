@@ -184,17 +184,36 @@ after 'init_app' => sub {
     return if $self->no_pidfile_action;
 
     my $piddir = $self->pidfile->file->dir;
+    $self->debug( sprintf("Checke PID-Verzeichnis '%s' ...", $piddir ) ) if $self->verbose >= 2;
     if ( -d $piddir ) {
-        $self->piddir( $piddir->resolve );
+        my $resolved = undef;
+        eval {
+            $resolved = $piddir->resolve;
+            $self->debug( sprintf("Resolvdes PID-Verzeichnis '%s' ...", $resolved ) ) if $self->verbose >= 3;
+        };
+        if ( $@ ) {
+            $self->error( $@ );
+        }
+        $self->piddir( $resolved );
         $piddir = $self->piddir;
-        $self->pidfile( $self->pidfile->file->resolve );
+        $self->debug( sprintf("Verwende PID-Verzeichnis '%s' ...", $piddir ) ) if $self->verbose >= 3;
+        $self->debug( sprintf("Checke PID-File '%s' ...", $self->pidfile->file ) ) if $self->verbose >= 2;
+        if ( -f $self->pidfile->file ) {
+            eval {
+                $resolved = $self->pidfile->file->resolve;
+            };
+            if ( $@ ) {
+                $self->error( $@ );
+            }
+            $self->pidfile( $resolved );
+        }
     }
     else {
         $self->error( sprintf( "Verzeichnis für PID-Datei '%s' existiert nicht oder ist kein Verzeichnis.", $piddir ) );
         exit 14;
     }
-    my $pidfile = $self->pidfile->file;
 
+    my $pidfile = $self->pidfile->file;
     $self->debug( "Initialisiere PID-Datei ..." );
     $self->debug( sprintf( "PID-Datei: '%s'", $pidfile ) ) if $self->verbose >= 2;
 
