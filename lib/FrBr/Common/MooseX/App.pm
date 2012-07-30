@@ -41,12 +41,7 @@ with 'FrBr::Common::MooseX::Role::CommonOpts';
 
 # Versionitis
 
-my $Revis = <<'ENDE';
-    $Revision$
-ENDE
-$Revis =~ s/^.*:\s*(\S+)\s*\$.*/$1/s;
-
-use version; our $VERSION = qv("0.1.0"); $VERSION .= " r" . $Revis;
+use version; our $VERSION = qv("0.1.0");
 
 ############################################################################
 
@@ -276,7 +271,7 @@ sub _build_local_timezone {
 
 
 sub _build_version {
-    return $VERSION;
+    return ($VERSION . '');
 }
 
 #############################################################################################

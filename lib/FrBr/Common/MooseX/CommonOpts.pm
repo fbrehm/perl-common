@@ -37,12 +37,7 @@ with 'FrBr::Common::MooseX::Types';
 
 # Versionitis
 
-my $Revis = <<'ENDE';
-    $Revision$
-ENDE
-$Revis =~ s/^.*:\s*(\S+)\s*\$.*/$1/s;
-
-use version; our $VERSION = qv("0.1"); $VERSION .= " r" . $Revis;
+use version; our $VERSION = qv("0.1");
 
 ############################################################################
 
@@ -84,7 +79,7 @@ has 'version' => (
 );
 
 sub _build_version {
-    return $VERSION;
+    return ($VERSION . "");
 }
 
 #---------------------------------------------------------------------------

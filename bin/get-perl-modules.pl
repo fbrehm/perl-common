@@ -1,8 +1,5 @@
 #!/usr/local/bin/perl
 
-# $Id$
-# $URL$
-
 =head1 NAME
 
 B<get-perl-modules.pl> - Stellt eine Liste aller verfuegbarer Perl-Module zusammen.
@@ -65,11 +62,7 @@ Getopt::Long::Configure('bundling');
 
 $| = 1;
 
-my $Revisn = <<'ENDE';
- $Revision$
-ENDE
-$Revisn =~ s/^.*:\s*(\S+)\s*\$.*/$1/s;
-our $VERSION = "1.0." . $Revisn;
+our $VERSION = "1.0";
 
 my $module = {};
 

@@ -36,12 +36,7 @@ use Carp qw( cluck );
 
 # Versionitis
 
-my $Revis = <<'ENDE';
-    $Revision$
-ENDE
-$Revis =~ s/^.*:\s*(\S+)\s*\$.*/$1/s;
-
-use version; our $VERSION = qv("0.2"); $VERSION .= " r" . $Revis;
+use version; our $VERSION = qv("0.2");
 
 ############################################################################
 
